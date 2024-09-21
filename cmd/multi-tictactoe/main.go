@@ -14,8 +14,8 @@ var upgrader = websocket.Upgrader{
 }
 
 type (
-	GameId   = string
-	PlayerId = string
+	GameId   string
+	PlayerId string
 )
 
 type Player struct {
@@ -28,6 +28,11 @@ type Game struct {
 	Started bool
 	AdminID PlayerId
 	Players []Player
+}
+
+func (self *Game) AddPlayer(ws *websocket.Conn, id PlayerId) {
+	player := Player{ID: id, Connection: ws}
+	self.Players = append(self.Players, player)
 }
 
 var games = make(map[GameId]Game)
@@ -46,13 +51,9 @@ func main() {
 func handleHome(w http.ResponseWriter, r *http.Request) {
 }
 
-func handleCreateLobby(w http.ResponseWriter, r *http.Request) {
-	lobbyId := uuid.New().String()
-	playerId := uuid.New().String()
-
-	player := Player{ID: playerId}
+func initGameState() *Game {
 	players := []Player{}
-	newGame := Game{Turn: "", Started: false, AdminID: playerId}
+	return &Game{Started: false, Players: players}
 }
 
 func handleLobby(w http.ResponseWriter, r *http.Request) {
@@ -67,14 +68,33 @@ func handleGame(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
-	gameId := r.PathValue("id")
-	game, ok := games[gameId]
-	if !ok {
-		// Initialize game state
+	var playerId PlayerId
+
+	playerCookie, err := r.Cookie("playerId")
+	if err != nil {
+		playerId = PlayerId(uuid.New().String())
 	} else {
-		// Add player to game if exist
+		playerId = PlayerId(playerCookie.Value)
 	}
 
-	for {
+	gameId := GameId(r.PathValue("id"))
+	existingGame, ok := games[gameId]
+	if !ok {
+		// Initialize game state
+		playerId := uuid.New().String()
+		newGameState := *initGameState()
+
+		newGameState.AdminID = PlayerId(playerId)
+
+		newGameState.AddPlayer(ws, PlayerId(playerId))
+
+		games[gameId] = newGameState
+	} else {
+		existingGame.AddPlayer(ws, PlayerId(playerId))
 	}
+
+	// Add player to game
+
+	// for {
+	// }
 }
