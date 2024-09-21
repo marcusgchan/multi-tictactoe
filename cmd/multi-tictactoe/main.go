@@ -49,6 +49,7 @@ func main() {
 }
 
 func handleHome(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./web/index.html")
 }
 
 func initGameState() *Game {
